@@ -114,57 +114,65 @@ order by milliseconds desc
 -- 1. Find how much amount spent by each customer on artists? Write a query to return 
 -- customer name, artist name and total spent 
 
-select first_name,last_name,a.name,sum(total)
-from customer c
-join artist a
-
-
-join invoice i
-
-select *
-from [dbo].[artist]
-
-select *
-from invoice
-
-select *
-from invoice_line
-
-select *
-from [dbo].[album]
-
-select *
-from [dbo].[customer]
-select *
-from playlist_track
-
-
-select *
-from track
-
-[dbo].[genre]
-
-select c.first_name,c.last_name,sum(i.total) as sum,art.name
-from invoice i
-join invoice_line il on i.invoice_id = il.invoice_id
-join track t on t.track_id = il.track_id
-join album a on a.album_id = t.album_id
-join artist art on art.artist_id = a.artist_id
-join customer c on c.customer_id = i.customer_id
-group by  c.first_name,c.last_name,art.name
+WITH best_selling_artist AS (
+	SELECT art.artist_id AS artist_id, art.name AS artist_name, SUM(invoice_line.unit_price*invoice_line.quantity) AS total_sales
+	FROM invoice_line 
+	JOIN track ON track.track_id = invoice_line.track_id
+	JOIN album ON album.album_id = track.album_id
+	JOIN artist art ON art.artist_id = album.artist_id
+	GROUP BY art.artist_id,art.name 
+	ORDER BY total_sales DESC
+	LIMIT 1
+)
+SELECT c.customer_id, c.first_name, c.last_name, bsa.artist_name, SUM(il.unit_price*il.quantity) AS amount_spent
+FROM invoice i
+JOIN customer c ON c.customer_id = i.customer_id
+JOIN invoice_line il ON il.invoice_id = i.invoice_id
+JOIN track t ON t.track_id = il.track_id
+JOIN album alb ON alb.album_id = t.album_id
+JOIN best_selling_artist bsa ON bsa.artist_id = alb.artist_id
+GROUP BY c.customer_id, c.first_name, c.last_name, bsa.artist_name
+ORDER BY amount_spent DESC;
 
 
 
+-- select first_name,last_name,a.name,sum(total)
+-- from customer c
+-- join artist a
 
 
+-- join invoice i
+
+-- select *
+-- from [dbo].[artist]
+
+-- select *
+-- from invoice
+
+-- select *
+-- from invoice_line
+
+-- select *
+-- from [dbo].[album]
+
+-- select *
+-- from [dbo].[customer]
+-- select *
+-- from playlist_track
+
+
+-- select *
+-- from track
+
+-- [dbo].[genre]
 
 -- 2. We want to find out the most popular music Genre for each country. We determine the 
 -- most popular genre as the genre with the highest amount of purchases. Write a query 
 -- that returns each country along with the top Genre. For countries where the maximum 
 -- number of purchases is shared return all Genres 
 
-	with cte as(select *, dense_rank() over(partition by country order by country,count desc) as rnk
-	from (select i.billing_country as country,g.name,count(g.genre_id) as count
+	with cte as(select *, dense_rank() over(partition by country order by country,purchases desc) as rnk
+	from (select i.billing_country as country,g.name,count(g.genre_id) as purchases
 	from invoice i
 	join invoice_line il
 	on i.invoice_id = il.invoice_id
@@ -173,6 +181,9 @@ group by  c.first_name,c.last_name,art.name
 	join genre g
 	on g.genre_id = t.genre_id
 	group by i.billing_country,g.name)x)
+
+	select *
+	from cte where rnk =1 
 
 
 -- 3. Write a query that determines the customer that has spent the most on music for each 
